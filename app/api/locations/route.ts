@@ -8,29 +8,29 @@ export async function GET(request: NextRequest) {
   const id = searchParams.get('id')
 
   if (id) {
-    const location = db.select().from(locations).where(eq(locations.id, Number(id))).get()
+    const [location] = await db.select().from(locations).where(eq(locations.id, Number(id)))
     if (!location) {
       return NextResponse.json({ error: 'Location not found' }, { status: 404 })
     }
     return NextResponse.json(location)
   }
 
-  const allLocations = db.select().from(locations).all()
+  const allLocations = await db.select().from(locations)
   return NextResponse.json(allLocations)
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const result = db.insert(locations).values({
+    const [newLocation] = await db.insert(locations).values({
       name: body.name || '',
       country: body.country || '',
       lat: body.lat || '0',
       lng: body.lng || '0',
       description: body.description || '',
-    }).run()
+    }).returning()
 
-    return NextResponse.json({ id: result.lastInsertRowid, ...body }, { status: 201 })
+    return NextResponse.json({ id: newLocation.id, ...body }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create location' }, { status: 500 })
   }
@@ -44,9 +44,9 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, ...updates } = body
-    db.update(locations).set(updates).where(eq(locations.id, id)).run()
+    await db.update(locations).set(updates).where(eq(locations.id, id))
 
-    const updated = db.select().from(locations).where(eq(locations.id, id)).get()
+    const [updated] = await db.select().from(locations).where(eq(locations.id, id))
     return NextResponse.json(updated)
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update location' }, { status: 500 })
@@ -61,7 +61,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 })
     }
 
-    db.delete(locations).where(eq(locations.id, Number(id))).run()
+    await db.delete(locations).where(eq(locations.id, Number(id)))
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete location' }, { status: 500 })
